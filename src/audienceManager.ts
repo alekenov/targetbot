@@ -3,7 +3,7 @@
  * Содержит логику создания/обновления Custom Audiences и Lookalike Audiences.
  */
 
-import { findOrCreateCustomAudience, updateCustomAudience, Env } from './facebookApi';
+import { findOrCreateCustomAudience, updateCustomAudience, createLookalikeAudience, Env } from './facebookApi';
 import { hashPhoneArrayForFacebook } from './utils/hash';
 
 /**
@@ -74,6 +74,70 @@ export async function syncPhoneAudience(env: Env): Promise<{ success: boolean; m
 		return {
 			success: false,
 			message: error instanceof Error ? error.message : 'Unknown error during audience sync'
+		};
+	}
+}
+
+/**
+ * Создает Lookalike аудиторию на основе основной Custom Audience с телефонами
+ * 
+ * @param env Окружение Worker'а
+ * @param sourceAudienceName Название исходной Custom Audience (по умолчанию "Phone Audience")
+ * @returns Результат создания Lookalike аудитории
+ */
+export async function createPhoneLookalikeAudience(
+	env: Env,
+	sourceAudienceName: string = 'Phone Audience'
+): Promise<{ success: boolean; message: string; audienceId?: string }> {
+	try {
+		console.log(`Starting Lookalike audience creation based on "${sourceAudienceName}"...`);
+		
+		// Получаем ID исходной аудитории из KV (используя имя как ключ)
+		const sourceAudienceIdKey = `audience:${sourceAudienceName}`;
+		const sourceAudienceId = await env.AUDIENCE_CACHE.get(sourceAudienceIdKey);
+		
+		if (!sourceAudienceId) {
+			return {
+				success: false,
+				message: `Source audience "${sourceAudienceName}" not found in cache. Please sync phone audience first.`
+			};
+		}
+		
+		console.log(`Found source audience ID: ${sourceAudienceId}`);
+		
+		// Параметры для Lookalike аудитории
+		// Здесь используем фиксированные значения, но в реальном сценарии они могут быть переданы как параметры
+		const lookalikeConfig = {
+			name: `${sourceAudienceName} - Lookalike 1%`,
+			countrySpec: 'US',  // Страна для Lookalike: US, RU и т.д.
+			ratio: 0.01         // 1% от населения указанной страны
+		};
+		
+		// Создаем Lookalike аудиторию
+		console.log(`Creating Lookalike audience "${lookalikeConfig.name}" for country ${lookalikeConfig.countrySpec}...`);
+		const lookalikeId = await createLookalikeAudience(
+			sourceAudienceId,
+			lookalikeConfig.name,
+			lookalikeConfig.countrySpec,
+			lookalikeConfig.ratio,
+			env.FB_ACCESS_TOKEN,
+			env.FB_AD_ACCOUNT_ID,
+			env
+		);
+		
+		console.log(`Successfully created Lookalike audience with ID: ${lookalikeId}`);
+		
+		return {
+			success: true,
+			message: `Created Lookalike audience "${lookalikeConfig.name}" based on "${sourceAudienceName}"`,
+			audienceId: lookalikeId
+		};
+	} catch (error) {
+		console.error('Error in createPhoneLookalikeAudience:', error);
+		
+		return {
+			success: false,
+			message: error instanceof Error ? error.message : 'Unknown error during Lookalike audience creation'
 		};
 	}
 }

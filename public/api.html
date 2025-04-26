@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Facebook Ads Automator API</title>
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+				line-height: 1.6;
+				color: #333;
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 20px;
+			}
+			h1 {
+				border-bottom: 1px solid #eee;
+				padding-bottom: 10px;
+			}
+			.endpoint {
+				margin-bottom: 30px;
+				padding: 15px;
+				border: 1px solid #ddd;
+				border-radius: 5px;
+				background-color: #f9f9f9;
+			}
+			.endpoint h3 {
+				margin-top: 0;
+				color: #0066cc;
+			}
+			.method {
+				display: inline-block;
+				padding: 3px 6px;
+				border-radius: 3px;
+				background-color: #34a853;
+				color: white;
+				font-size: 14px;
+				margin-right: 8px;
+			}
+			.endpoint-path {
+				font-family: monospace;
+				font-weight: bold;
+			}
+			pre {
+				background-color: #f1f1f1;
+				padding: 10px;
+				border-radius: 5px;
+				overflow-x: auto;
+			}
+			code {
+				font-family: monospace;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Facebook Ads Automator API</h1>
+		<p>API для автоматизации работы с Facebook Ads</p>
+		
+		<div class="endpoint">
+			<h3><span class="method">GET</span><span class="endpoint-path">/api/campaigns</span></h3>
+			<p>Получение списка рекламных кампаний Facebook.</p>
+			<h4>Пример ответа:</h4>
+			<pre><code>{
+  "success": true,
+  "message": "Fetched 25 campaigns.",
+  "data": [
+    {
+      "name": "Campaign Name",
+      "status": "ACTIVE",
+      "id": "123456789"
+    }
+  ]
+}</code></pre>
+		</div>
+		
+		<div class="endpoint">
+			<h3><span class="method">POST</span><span class="endpoint-path">/api/sync-audience</span></h3>
+			<p>Синхронизация аудитории с телефонными номерами.</p>
+			<h4>Пример ответа:</h4>
+			<pre><code>{
+  "success": true,
+  "message": "Successfully synced audience with 157 phone numbers"
+}</code></pre>
+		</div>
+		
+		<div class="endpoint">
+			<h3><span class="method">POST</span><span class="endpoint-path">/api/create-lookalike</span></h3>
+			<p>Создание Look-alike аудитории на основе существующей аудитории.</p>
+			<h4>Пример ответа:</h4>
+			<pre><code>{
+  "success": true,
+  "message": "Successfully created Lookalike audience",
+  "audienceId": "123456789"
+}</code></pre>
+		</div>
+		
+		<div class="endpoint">
+			<h3><span class="method">GET</span><span class="endpoint-path">/api/audiences</span></h3>
+			<p>Получение списка всех Custom Audiences.</p>
+			<h4>Пример ответа:</h4>
+			<pre><code>{
+  "success": true,
+  "message": "Fetched 5 audiences.",
+  "data": [
+    {
+      "id": "123456789",
+      "name": "Custom Audience Name",
+      "type": "CUSTOM",
+      "approximate_count": 1000
+    }
+  ]
+}</code></pre>
+		</div>
+		
+		<script>
+			// Опционально: добавить кнопки для тестирования API
+			document.addEventListener('DOMContentLoaded', function() {
+				// Здесь может быть интерактивный JavaScript для тестирования эндпоинтов
+			});
+		</script>
+	</body>
+</html>

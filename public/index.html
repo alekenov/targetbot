@@ -3,17 +3,67 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
+		<title>Facebook Ads Automator</title>
+		<style>
+			body {
+				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 20px;
+				line-height: 1.6;
+				color: #333;
+				text-align: center;
+			}
+			h1 {
+				color: #4267B2; /* Facebook blue */
+			}
+			.card {
+				margin: 20px 0;
+				padding: 20px;
+				border: 1px solid #ddd;
+				border-radius: 8px;
+				background-color: #f9f9f9;
+			}
+			.btn {
+				display: inline-block;
+				padding: 10px 20px;
+				margin: 10px;
+				background-color: #4267B2;
+				color: white;
+				text-decoration: none;
+				border-radius: 4px;
+				font-weight: bold;
+			}
+			.btn:hover {
+				background-color: #365899;
+			}
+		</style>
 	</head>
 	<body>
-		<h1 id="heading"></h1>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
-		</script>
+		<h1>Facebook Ads Automator</h1>
+		<p>Cloudflare Worker для автоматизации работы с Facebook Ads API</p>
+		
+		<div class="card">
+			<h2>API Endpoints</h2>
+			<p>Используйте наши API эндпоинты для управления Facebook Ads</p>
+			<a href="/api.html" class="btn">Просмотреть API Документацию</a>
+		</div>
+		
+		<div class="card">
+			<h2>Функциональность</h2>
+			<ul style="text-align: left; display: inline-block;">
+				<li>Управление рекламными кампаниями</li>
+				<li>Создание и обновление Custom Audiences</li>
+				<li>Создание Lookalike Audiences</li>
+				<li>Автоматизация процессов</li>
+			</ul>
+		</div>
+		
+		<div class="card">
+			<h2>JSON API</h2>
+			<p>Для прямого доступа к JSON API используйте:</p>
+			<a href="/api/campaigns" class="btn">Список кампаний</a>
+			<a href="/api/audiences" class="btn">Список аудиторий</a>
+		</div>
 	</body>
 </html>

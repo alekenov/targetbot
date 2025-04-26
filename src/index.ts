@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-import { getCampaigns } from './facebookApi';
-import { syncPhoneAudience } from './audienceManager';
+import { getCampaigns, getCustomAudiences } from './facebookApi';
+import { syncPhoneAudience, createPhoneLookalikeAudience } from './audienceManager';
 
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
@@ -129,15 +129,57 @@ export default {
 					headers: { 'Content-Type': 'application/json' },
 				});
 			}
+			else if (path === '/api/create-lookalike') {
+				// Create Lookalike audience based on existing one
+				const result = await createPhoneLookalikeAudience(env);
+
+				return new Response(JSON.stringify({
+					success: result.success,
+					message: result.message,
+					audienceId: result.audienceId
+				}), {
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			else if (path === '/api/audiences') {
+				// Получение списка всех аудиторий
+				// Normalize Ad Account ID in case it includes an accidental 'FB_ACCOUNT_ID=' prefix
+				const rawAdAccountId = env.FB_AD_ACCOUNT_ID;
+				const adAccountId = rawAdAccountId.includes('=')
+					? rawAdAccountId.split('=')[1]
+					: rawAdAccountId;
+				
+				console.log('Fetching list of all Custom Audiences...');
+				const audiencesResponse = await getCustomAudiences(env.FB_ACCESS_TOKEN, adAccountId);
+				
+				// Преобразуем список аудиторий для API ответа - упрощаем структуру
+				const processedAudiences = audiencesResponse.data.map(audience => ({
+					id: audience.id,
+					name: audience.name,
+					type: audience.subtype || 'Unknown',
+					approximate_count: audience.approximate_count || 0
+				}));
+				
+				return new Response(JSON.stringify({
+					success: true,
+					message: `Fetched ${processedAudiences.length} audiences.`,
+					data: processedAudiences
+				}), {
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
 			// Home page or other routes
 			else {
 				return new Response(JSON.stringify({
 					success: true,
 					message: 'Facebook Ads Automator API',
 					endpoints: [
-						'/api/campaigns',
-						'/api/sync-audience'
-					]
+						'/api/campaigns', 
+						'/api/sync-audience',
+						'/api/create-lookalike',
+						'/api/audiences'
+					],
+					documentation: 'Visit /api/[endpoint] to use specific features'
 				}), {
 					headers: { 'Content-Type': 'application/json' },
 				});
@@ -168,6 +210,16 @@ export default {
 			console.log('Starting scheduled audience sync...');
 			const syncResult = await syncPhoneAudience(env);
 			console.log('Scheduled audience sync completed:', syncResult);
+			
+			// Если синхронизация аудитории с телефонами прошла успешно,
+			// создаем Lookalike аудиторию на ее основе
+			if (syncResult.success) {
+				console.log('Starting scheduled Lookalike audience creation...');
+				const lookalikeResult = await createPhoneLookalikeAudience(env);
+				console.log('Scheduled Lookalike audience creation completed:', lookalikeResult);
+			} else {
+				console.log('Skipping Lookalike audience creation due to failed audience sync');
+			}
 		} catch (error) {
 			console.error('Error in scheduled task:', error);
 		}
