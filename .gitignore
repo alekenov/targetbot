@@ -170,3 +170,14 @@ dist
 
 .dev.vars
 .wrangler/
+
+# Local development
+.env
+.dev.vars
+
+# Sensitive data files
+users.csv
+**/data/users*.csv
+**/data/phone*.csv
+**/data/email*.csv
+**/data/customers*.csv

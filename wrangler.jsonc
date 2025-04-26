@@ -27,6 +27,15 @@
 			}
 		]
 	},
+	"kv_namespaces": [
+		{
+			"binding": "AUDIENCE_CACHE",
+			"id": "6a4c5de7f0e14baab6d7b84238555176"
+		}
+	],
+	"triggers": {
+		"crons": ["0 0 * * *"]
+	},
 	"observability": {
 		"enabled": true
 	}
