@@ -42,7 +42,7 @@ export async function createLookalikeAudience(
 			return cachedLookalikeId;
 		}
 		
-		const apiVersion = 'v19.0';
+		const apiVersion = 'v22.0';
 		
 		// Создаем Lookalike аудиторию
 		console.log(`Creating new Lookalike audience "${name}" from source audience ${sourceAudienceId}...`);

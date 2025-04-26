@@ -11,7 +11,7 @@ import { CampaignsResponse, normalizeAdAccountId } from './types';
  * @returns Промис, который разрешается объектом с данными кампаний.
  */
 export async function getCampaigns(accessToken: string, adAccountId: string): Promise<CampaignsResponse> {
-	const apiVersion = 'v19.0'; // Используем актуальную версию API
+	const apiVersion = 'v22.0'; // Используем актуальную версию API
 	const fields = 'name,status'; // Запрашиваемые поля
 	// Нормализуем ID аккаунта в случае, если он содержит префикс
 	const accountId = normalizeAdAccountId(adAccountId);

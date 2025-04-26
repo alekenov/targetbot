@@ -80,3 +80,74 @@ export interface UpdateAudienceResponse {
 export function normalizeAdAccountId(adAccountId: string): string {
 	return adAccountId.includes('=') ? adAccountId.split('=')[1] : adAccountId;
 }
+
+// Интерфейсы для Ad Insights (метрик)
+export interface InsightsRequestParams {
+    // Уровень получения метрик: campaign, adset, ad
+    level?: 'campaign' | 'adset' | 'ad';
+    
+    // Список ID объектов для фильтрации
+    objectIds?: string[];
+    
+    // Метрики для получения (impressions, clicks, spend, etc.)
+    fields?: string[];
+    
+    // Предустановленный временной период
+    datePreset?: 'today' | 'yesterday' | 'last_3d' | 'last_7d' | 'last_14d' | 'last_28d' | 'last_30d' | 'last_90d' | 'this_month' | 'last_month';
+    
+    // Произвольный временной период
+    timeRange?: {
+        since: string; // формат YYYY-MM-DD
+        until: string; // формат YYYY-MM-DD
+    };
+    
+    // Фильтрация по статусу
+    status?: string[];
+}
+
+export interface InsightsResponse {
+    data?: Array<{
+        [key: string]: any;
+        campaign_id?: string;
+        campaign_name?: string;
+        adset_id?: string;
+        adset_name?: string;
+        ad_id?: string;
+        ad_name?: string;
+        date_start: string;
+        date_stop: string;
+    }>;
+    paging?: {
+        cursors: {
+            before: string;
+            after: string;
+        };
+        next?: string;
+    };
+}
+
+export interface InsightReport {
+    id: string;
+    name: string;
+    date_start: string;
+    date_stop: string;
+    metrics: {
+        [key: string]: any;
+    };
+}
+
+// Типы для модуля optimizationEngine
+export interface MetricsStorageItem {
+    timestamp: number;
+    insights: InsightReport[];
+    summary?: {
+        totalSpend: number;
+        totalImpressions: number;
+        totalClicks: number;
+        totalConversions: number;
+        avgCTR?: number;
+        avgCPC?: number;
+        avgCPM?: number;
+        avgCPA?: number;
+    };
+}

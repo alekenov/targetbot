@@ -1,6 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
-import { getCampaigns, getCustomAudiences } from './facebookApi';
+import { getCampaigns, getCustomAudiences, createCustomAudience } from './facebookApi';
+import { getAdInsights } from './facebookApi/insights';
 import { syncPhoneAudience, createPhoneLookalikeAudience } from './audienceManager';
+import { fetchMetrics, getStoredMetrics, runMetricsAnalysis } from './optimizationEngine';
 
 /**
  * Welcome to Cloudflare Workers! This is your first Durable Objects application.
@@ -141,6 +143,40 @@ export default {
 					headers: { 'Content-Type': 'application/json' },
 				});
 			}
+			else if (path === '/api/create-test-audience') {
+				try {
+					// Создаем тестовую аудиторию с минимальными параметрами
+					const audienceName = "Test Audience API v22";
+					const audienceDescription = "Тестовая аудитория, созданная через API v22.0";
+					
+					console.log(`Создание тестовой аудитории: ${audienceName}`);
+					
+					const audienceId = await createCustomAudience(
+						audienceName,
+						audienceDescription,
+						env.FB_ACCESS_TOKEN,
+						env.FB_AD_ACCOUNT_ID,
+						env
+					);
+					
+					return new Response(JSON.stringify({
+						success: true,
+						message: `Аудитория "${audienceName}" успешно создана`,
+						audienceId
+					}), {
+						headers: { 'Content-Type': 'application/json' },
+					});
+				} catch (error) {
+					console.error("Error during API call:", error);
+					
+					return new Response(JSON.stringify({
+						success: false,
+						message: error instanceof Error ? error.message : 'Неизвестная ошибка'
+					}), {
+						headers: { 'Content-Type': 'application/json' },
+					});
+				}
+			}
 			else if (path === '/api/audiences') {
 				// Получение списка всех аудиторий
 				// Normalize Ad Account ID in case it includes an accidental 'FB_ACCOUNT_ID=' prefix
@@ -157,13 +193,89 @@ export default {
 					id: audience.id,
 					name: audience.name,
 					type: audience.subtype || 'Unknown',
-					approximate_count: audience.approximate_count || 0
+					description: audience.description || ''
 				}));
 				
 				return new Response(JSON.stringify({
 					success: true,
 					message: `Fetched ${processedAudiences.length} audiences.`,
 					data: processedAudiences
+				}), {
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			else if (path === '/api/insights') {
+				// Получение свежих метрик кампаний
+				const rawAdAccountId = env.FB_AD_ACCOUNT_ID;
+				const adAccountId = rawAdAccountId.includes('=')
+					? rawAdAccountId.split('=')[1]
+					: rawAdAccountId;
+				
+				// Получаем параметры запроса из URL
+				const queryParams = new URL(request.url).searchParams;
+				const level = queryParams.get('level') || 'campaign';
+				const datePreset = queryParams.get('date_preset') || 'last_7d';
+				const campaignIds = queryParams.get('campaign_ids'); // опционально
+				
+				// Формируем список полей для запроса метрик
+				const fields = [
+					'campaign_name',
+					'impressions',
+					'clicks',
+					'spend',
+					'reach',
+					'cpm',
+					'cpc',
+					'ctr',
+					'unique_clicks',
+					'frequency',
+					'actions',
+					'action_values',
+					'cost_per_action_type'
+				];
+				
+				// Опциональная фильтрация по ID кампаний
+				const objectIds = campaignIds ? campaignIds.split(',') : undefined;
+				
+				console.log(`Fetching insights data for level: ${level}, date_preset: ${datePreset}`);
+				const insightsResponse = await getAdInsights(env.FB_ACCESS_TOKEN, adAccountId, {
+					level: level as 'campaign' | 'adset' | 'ad',
+					fields,
+					datePreset: datePreset as any,
+					objectIds
+				});
+				
+				return new Response(JSON.stringify({
+					success: true,
+					message: `Fetched insights for ${insightsResponse.data?.length || 0} items.`,
+					data: insightsResponse.data
+				}), {
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			else if (path === '/api/metrics/collect') {
+				// Запуск сбора и сохранения метрик
+				console.log('Starting metrics collection and analysis...');
+				const result = await runMetricsAnalysis(env);
+				
+				return new Response(JSON.stringify({
+					success: result.success,
+					message: result.message,
+					data: result.data
+				}), {
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			else if (path === '/api/metrics/latest') {
+				// Получение последних сохраненных метрик
+				console.log('Retrieving latest stored metrics...');
+				const result = await getStoredMetrics(env);
+				
+				return new Response(JSON.stringify({
+					success: result.success,
+					message: result.message,
+					lastUpdated: result.lastUpdated,
+					data: result.data
 				}), {
 					headers: { 'Content-Type': 'application/json' },
 				});
@@ -177,7 +289,11 @@ export default {
 						'/api/campaigns', 
 						'/api/sync-audience',
 						'/api/create-lookalike',
-						'/api/audiences'
+						'/api/create-test-audience',
+						'/api/audiences',
+						'/api/insights',
+						'/api/metrics/collect',
+						'/api/metrics/latest'
 					],
 					documentation: 'Visit /api/[endpoint] to use specific features'
 				}), {

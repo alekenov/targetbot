@@ -5,87 +5,109 @@
 import { Env, UpdateAudienceResponse } from './types';
 
 /**
- * Обновляет Custom Audience хешированными телефонными номерами.
- * 
- * @param audienceId ID Custom Audience для обновления
- * @param hashedPhones Массив хешированных телефонных номеров (SHA-256)
+ * Обновляет Custom Audience хешированными телефонными номерами
+ * @param audienceId ID аудитории
+ * @param hashedPhones Массив хешированных телефонов
  * @param accessToken Токен доступа Facebook
- * @param env Окружение Worker'а
- * @returns Результат обновления
+ * @returns Результат обновления аудитории
  */
 export async function updateCustomAudience(
 	audienceId: string,
 	hashedPhones: string[],
-	accessToken: string,
-	env: Env
-): Promise<{ success: boolean; message: string }> {
+	accessToken: string
+): Promise<UpdateAudienceResponse> {
 	try {
-		if (!hashedPhones.length) {
-			return { success: false, message: 'No phone numbers provided' };
-		}
+		console.log(`[AUDIENCE UPDATE] Обновление аудитории ID: ${audienceId}`);
+		console.log(`[AUDIENCE UPDATE] Количество телефонов для добавления: ${hashedPhones.length}`);
 		
-		const apiVersion = 'v19.0';
-		const url = `https://graph.facebook.com/${apiVersion}/${audienceId}/users`;
+		// Ограничение размера пакета для Facebook API
+		const MAX_BATCH_SIZE = 10000;
+		const apiVersion = 'v22.0';
 		
-		// Максимальное количество номеров в одном запросе (лимит Facebook API)
-		const BATCH_SIZE = 10000;
-		let successfulBatches = 0;
-		
-		// Разбиваем на батчи, если телефонов больше максимального лимита
-		for (let i = 0; i < hashedPhones.length; i += BATCH_SIZE) {
-			const batch = hashedPhones.slice(i, i + BATCH_SIZE);
+		// Если количество телефонов превышает лимит, разбиваем на несколько запросов
+		if (hashedPhones.length > MAX_BATCH_SIZE) {
+			console.log(`[AUDIENCE UPDATE] Телефоны будут добавлены батчами по ${MAX_BATCH_SIZE} шт.`);
+			const batches = [];
+			for (let i = 0; i < hashedPhones.length; i += MAX_BATCH_SIZE) {
+				batches.push(hashedPhones.slice(i, i + MAX_BATCH_SIZE));
+			}
 			
-			// Формируем данные для запроса в формате, требуемом Facebook API
-			// Каждый хешированный телефон оборачивается в массив
-			const data = batch.map(phone => [phone]);
+			console.log(`[AUDIENCE UPDATE] Разбито на ${batches.length} батчей`);
 			
-			const payload = {
-				schema: ['PHONE_SHA256'],
-				data,
-				access_token: accessToken
+			// Результаты обновления для каждого батча
+			const results = [];
+			
+			// Обновляем аудиторию последовательно для каждого батча
+			for (let i = 0; i < batches.length; i++) {
+				const batch = batches[i];
+				console.log(`[AUDIENCE UPDATE] Обработка батча ${i + 1}/${batches.length}, размер: ${batch.length}`);
+				
+				const result = await sendAudienceUpdateRequest(apiVersion, audienceId, batch, accessToken);
+				results.push(result);
+				
+				console.log(`[AUDIENCE UPDATE] Батч ${i + 1} обработан успешно: получено ${result.num_received || 0} телефонов`);
+			}
+			
+			// Объединяем результаты
+			const totalReceived = results.reduce((sum, result) => sum + (result.num_received || 0), 0);
+			const totalInvalid = results.reduce((sum, result) => sum + (result.num_invalid_entries || 0), 0);
+			
+			console.log(`[AUDIENCE UPDATE] Все батчи обработаны`);
+			console.log(`[AUDIENCE UPDATE] Общий результат: получено ${totalReceived}, отклонено ${totalInvalid}`);
+			
+			return {
+				audience_id: audienceId,
+				num_received: totalReceived,
+				num_invalid_entries: totalInvalid
 			};
-			
-			console.log(`Uploading batch ${i / BATCH_SIZE + 1} of ${Math.ceil(hashedPhones.length / BATCH_SIZE)}...`);
-			
-			const response = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(payload)
-			});
-			
-			if (!response.ok) {
-				const errorText = await response.text();
-				console.error(`Facebook API Error Response (batch ${i / BATCH_SIZE + 1}): ${errorText}`);
-				throw new Error(`Error updating audience (batch ${i / BATCH_SIZE + 1}): ${response.status} ${response.statusText}`);
-			}
-			
-			const result = await response.json() as UpdateAudienceResponse;
-			
-			if (!result.audience_id) {
-				console.warn(`Unexpected response format (batch ${i / BATCH_SIZE + 1}):`, result);
-			} else {
-				successfulBatches++;
-				console.log(`Successfully uploaded batch ${i / BATCH_SIZE + 1} to audience ID: ${result.audience_id}`);
-			}
-			
-			// Добавляем небольшую задержку между батчами, чтобы не превысить rate limits
-			if (i + BATCH_SIZE < hashedPhones.length) {
-				await new Promise(resolve => setTimeout(resolve, 1000));
-			}
+		} else {
+			// Если телефонов немного, отправляем одним запросом
+			console.log(`[AUDIENCE UPDATE] Отправка всех телефонов одним запросом`);
+			return await sendAudienceUpdateRequest(apiVersion, audienceId, hashedPhones, accessToken);
 		}
-		
-		return {
-			success: true,
-			message: `Updated Custom Audience with ${hashedPhones.length} phone numbers (${successfulBatches} batches)`
-		};
 	} catch (error) {
-		console.error('Error in updateCustomAudience:', error);
-		
-		return {
-			success: false,
-			message: error instanceof Error ? error.message : 'Unknown error during audience update'
-		};
+		console.error('[AUDIENCE UPDATE] ERROR: Ошибка при обновлении аудитории:', error);
+		throw error;
 	}
+}
+
+/**
+ * Вспомогательная функция для отправки запроса на обновление аудитории
+ */
+async function sendAudienceUpdateRequest(
+	apiVersion: string,
+	audienceId: string,
+	hashedPhones: string[],
+	accessToken: string
+): Promise<UpdateAudienceResponse> {
+	const url = `https://graph.facebook.com/${apiVersion}/${audienceId}/users`;
+	
+	console.log(`[AUDIENCE UPDATE] Запрос на URL: ${url}`);
+	
+	const payload = {
+		schema: ['PHONE_SHA256'],
+		data: hashedPhones.map(phone => [phone]),
+		access_token: accessToken // Передаем токен в теле запроса
+	};
+	
+	console.log(`[AUDIENCE UPDATE] Размер данных в запросе: ${JSON.stringify(payload).length} байт`);
+	
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify(payload)
+	});
+	
+	if (!response.ok) {
+		const errorText = await response.text();
+		console.error(`[AUDIENCE UPDATE] ERROR: Facebook API Error Response: ${errorText}`);
+		throw new Error(`Error updating audience: ${response.status} ${response.statusText}`);
+	}
+	
+	const result = await response.json() as UpdateAudienceResponse;
+	console.log(`[AUDIENCE UPDATE] SUCCESS: Аудитория успешно обновлена. Получено: ${result.num_received}, недействительных: ${result.num_invalid_entries || 0}`);
+	
+	return result;
 }

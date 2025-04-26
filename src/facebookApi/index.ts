@@ -1,22 +1,26 @@
 /**
- * Модуль для работы с Facebook Ads API.
- * Реэкспортирует все функции из подмодулей.
+ * Реэкспорт функций для Facebook API
+ * Этот файл обеспечивает обратную совместимость при рефакторинге
  */
 
-// Реэкспорт всех типов
-export * from './types';
-
-// Реэкспорт функций для работы с кампаниями
+// Экспорт функций для работы с кампаниями
 export { getCampaigns } from './campaigns';
 
-// Реэкспорт функций для работы с аудиториями
+// Экспорт функций для работы с аудиториями
 export { 
     getCustomAudiences,
-    findOrCreateCustomAudience
+    findOrCreateCustomAudience,
+    createCustomAudience
 } from './audiences';
 
-// Реэкспорт функций для работы с Lookalike аудиториями
+// Экспорт функций для работы с Lookalike аудиториями
 export { createLookalikeAudience } from './lookalike';
 
-// Реэкспорт функций для обновления аудиторий
+// Экспорт функций для обновления аудиторий
 export { updateCustomAudience } from './audience-update';
+
+// Экспорт функций для работы с метриками (insights)
+export { getAdInsights, processInsightsData } from './insights';
+
+// Экспорт типов для обеспечения совместимости
+export * from './types';
